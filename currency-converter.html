@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Currency</title>
+<style>
+  :root{
+    --bg:#000;
+    --field:#1c1c1e;
+    --field2:#2c2c2e;
+    --util:#a5a5a5;
+    --gold:#f5a623;
+    --active-bg:rgba(120,99,18,0.45);
+    --active-field:#3a3318;
+    --active-text:#e7c25a;
+    --txt:#fff;
+    --muted:#8a8a8e;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    display:flex;flex-direction:column;
+    height:100dvh;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    overflow:hidden;
+    user-select:none;-webkit-user-select:none;
+  }
+  #topbar{
+    flex:0 0 auto;
+    padding:8px 16px 4px;
+    font-size:12px;color:var(--muted);
+    letter-spacing:.2px;
+  }
+  #topbar:active{opacity:.6;}
+  #topbar .dot{color:var(--gold);}
+  #rows{
+    flex:1 1 auto;
+    display:flex;flex-direction:column;justify-content:center;
+    gap:10px;
+    padding:6px 12px;
+    min-height:0;
+  }
+  .row{
+    display:flex;align-items:center;gap:10px;
+    border-radius:16px;
+    padding:6px;
+    transition:background .15s;
+  }
+  .row.active{background:var(--active-bg);}
+  .flagbtn{
+    display:flex;align-items:center;gap:10px;
+    background:none;border:none;color:var(--txt);
+    padding:6px;border-radius:14px;cursor:pointer;
+    flex:0 0 auto;
+  }
+  .flagbtn:active{background:rgba(255,255,255,.08);}
+  .flag{
+    width:40px;height:40px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:24px;line-height:1;
+    background:#111;box-shadow:0 0 0 1px rgba(255,255,255,.15);
+    overflow:hidden;
+  }
+  .code{font-size:17px;font-weight:600;min-width:42px;text-align:left;}
+  .amount{
+    flex:1 1 auto;
+    background:var(--field);
+    border-radius:14px;
+    padding:14px 18px;
+    text-align:right;
+    font-size:26px;font-weight:500;
+    color:var(--txt);
+    cursor:pointer;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    min-width:0;
+  }
+  .row.active .amount{background:var(--active-field);color:var(--active-text);}
+  .row.active .code{color:var(--active-text);}
+
+  #pad{
+    flex:0 0 auto;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    padding:10px 12px 14px;
+  }
+  .key{
+    border:none;color:#fff;
+    border-radius:999px;
+    font-size:26px;font-weight:500;
+    padding:0;
+    height:62px;
+    background:var(--field2);
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:filter .08s, transform .04s;
+  }
+  .key:active{filter:brightness(1.4);transform:scale(.97);}
+  .key.util{background:var(--util);color:#000;font-weight:600;}
+  .key.op{background:var(--gold);color:#fff;font-weight:600;}
+  .key.zero{grid-column:span 2;}
+
+  /* picker */
+  #picker{
+    position:fixed;inset:0;z-index:50;
+    background:rgba(0,0,0,.6);
+    display:none;
+    align-items:flex-end;
+  }
+  #picker.open{display:flex;}
+  .sheet{
+    background:#1c1c1e;width:100%;max-height:80%;
+    border-radius:20px 20px 0 0;
+    display:flex;flex-direction:column;
+    padding-bottom:env(safe-area-inset-bottom);
+    animation:slideup .2s ease;
+  }
+  @keyframes slideup{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  .sheet h2{margin:0;padding:16px 18px 8px;font-size:15px;color:var(--muted);font-weight:600;}
+  .search{
+    margin:0 14px 8px;padding:11px 14px;border-radius:12px;border:none;
+    background:#2c2c2e;color:#fff;font-size:16px;outline:none;
+  }
+  .list{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 0 8px;}
+  .item{
+    display:flex;align-items:center;gap:12px;
+    padding:11px 18px;cursor:pointer;
+  }
+  .item:active{background:#2c2c2e;}
+  .item .flag{width:34px;height:34px;font-size:20px;}
+  .item .it-code{font-weight:600;min-width:46px;}
+  .item .it-name{color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .item.sel{color:var(--gold);}
+  .item.sel .it-name{color:var(--gold);opacity:.7;}
+</style>
+</head>
+<body>
+  <div id="topbar">Loading rates…</div>
+  <div id="rows"></div>
+  <div id="pad"></div>
+
+  <div id="picker">
+    <div class="sheet">
+      <h2>Choose currency</h2>
+      <input class="search" id="search" placeholder="Search code or country" autocomplete="off">
+      <div class="list" id="list"></div>
+    </div>
+  </div>
+
+<script>
+/* ---------- safe storage (works on phone, no-ops in sandbox) ---------- */
+const mem={};
+const store={
+  get(k){try{const v=localStorage.getItem(k);return v;}catch(e){return mem[k]??null;}},
+  set(k,v){try{localStorage.setItem(k,v);}catch(e){mem[k]=v;}}
+};
+
+/* ---------- currency metadata ---------- */
+const CUR={
+  USD:["🇺🇸","US Dollar"], EUR:["🇪🇺","Euro"], GBP:["🇬🇧","British Pound"],
+  AUD:["🇦🇺","Australian Dollar"], NZD:["🇳🇿","New Zealand Dollar"], CAD:["🇨🇦","Canadian Dollar"],
+  JPY:["🇯🇵","Japanese Yen"], CNY:["🇨🇳","Chinese Yuan"], HKD:["🇭🇰","Hong Kong Dollar"],
+  SGD:["🇸🇬","Singapore Dollar"], THB:["🇹🇭","Thai Baht"], COP:["🇨🇴","Colombian Peso"],
+  INR:["🇮🇳","Indian Rupee"], IDR:["🇮🇩","Indonesian Rupiah"], MYR:["🇲🇾","Malaysian Ringgit"],
+  PHP:["🇵🇭","Philippine Peso"], VND:["🇻🇳","Vietnamese Dong"], KRW:["🇰🇷","South Korean Won"],
+  CHF:["🇨🇭","Swiss Franc"], SEK:["🇸🇪","Swedish Krona"], NOK:["🇳🇴","Norwegian Krone"],
+  DKK:["🇩🇰","Danish Krone"], MXN:["🇲🇽","Mexican Peso"], BRL:["🇧🇷","Brazilian Real"],
+  ARS:["🇦🇷","Argentine Peso"], CLP:["🇨🇱","Chilean Peso"], PEN:["🇵🇪","Peruvian Sol"],
+  ZAR:["🇿🇦","South African Rand"], AED:["🇦🇪","UAE Dirham"], SAR:["🇸🇦","Saudi Riyal"],
+  TRY:["🇹🇷","Turkish Lira"], RUB:["🇷🇺","Russian Ruble"], PLN:["🇵🇱","Polish Zloty"],
+  CZK:["🇨🇿","Czech Koruna"], HUF:["🇭🇺","Hungarian Forint"], ILS:["🇮🇱","Israeli Shekel"],
+  EGP:["🇪🇬","Egyptian Pound"], TWD:["🇹🇼","Taiwan Dollar"], PKR:["🇵🇰","Pakistani Rupee"],
+  BDT:["🇧🇩","Bangladeshi Taka"], LKR:["🇱🇰","Sri Lankan Rupee"], NGN:["🇳🇬","Nigerian Naira"],
+  KES:["🇰🇪","Kenyan Shilling"], FJD:["🇫🇯","Fijian Dollar"]
+};
+const flag=c=>(CUR[c]?CUR[c][0]:"🏳️");
+const name=c=>(CUR[c]?CUR[c][1]:c);
+
+/* ---------- state ---------- */
+let RATES={};          // {USD:1, EUR:0.9, ...} relative to USD
+let UPDATED=null;      // Date
+let slots = JSON.parse(store.get("slots")||"null") || ["EUR","USD","THB","AUD","COP"];
+let active = 4;
+// calculator: display is a plain numeric string (no commas); "" means blank
+let calc={display:"", acc:null, op:null, fresh:true};
+
+/* ---------- formatting ---------- */
+function group(s){
+  if(s===""||s==null)return "";
+  let neg=s.startsWith("-"); if(neg)s=s.slice(1);
+  let [i,d]=s.split(".");
+  i=i.replace(/\B(?=(\d{3})+(?!\d))/g,",");
+  return (neg?"-":"")+(d!==undefined?i+"."+d:i);
+}
+function fmt(v){
+  if(!isFinite(v))return "0";
+  const a=Math.abs(v);
+  const dp=a>=1000?0:(a>0&&a<1?4:2);
+  return v.toLocaleString("en-US",{minimumFractionDigits:dp,maximumFractionDigits:dp});
+}
+const clean=n=>parseFloat(n.toPrecision(12)); // kill float noise
+const activeVal=()=>parseFloat(calc.display||"0")||0;
+
+/* ---------- rendering ---------- */
+const rowsEl=document.getElementById("rows");
+const padEl=document.getElementById("pad");
+const topbar=document.getElementById("topbar");
+
+function buildRows(){
+  rowsEl.innerHTML="";
+  slots.forEach((code,i)=>{
+    const row=document.createElement("div");
+    row.className="row"+(i===active?" active":"");
+    row.innerHTML=`
+      <button class="flagbtn" data-flag="${i}">
+        <span class="flag">${flag(code)}</span>
+        <span class="code">${code}</span>
+      </button>
+      <div class="amount" data-amt="${i}">0</div>`;
+    rowsEl.appendChild(row);
+  });
+  updateAmounts();
+}
+
+function updateAmounts(){
+  const aCode=slots[active];
+  const hasVal = calc.display!=="" && calc.display!=="-" && calc.display!==".";
+  const usd = (hasVal && RATES[aCode]) ? parseFloat(calc.display)/RATES[aCode] : null;
+  document.querySelectorAll("#rows .row").forEach((row,i)=>{
+    row.classList.toggle("active",i===active);
+    const code=slots[i];
+    const cell=row.querySelector(".amount");
+    if(i===active){
+      cell.textContent=group(calc.display);
+    }else if(!hasVal){
+      cell.textContent="";
+    }else if(usd!==null && RATES[code]!=null){
+      cell.textContent=fmt(usd*RATES[code]);
+    }else{
+      cell.textContent=RATES[code]==null?"—":"…";
+    }
+  });
+}
+
+function buildPad(){
+  const keys=[
+    ["C","util","clear"],["←","util","back"],["%","util","pct"],["÷","op","div"],
+    ["7","","7"],["8","","8"],["9","","9"],["×","op","mul"],
+    ["4","","4"],["5","","5"],["6","","6"],["−","op","sub"],
+    ["1","","1"],["2","","2"],["3","","3"],["+","op","add"],
+    ["0","zero","0"],[".","","dot"],["=","op","eq"]
+  ];
+  padEl.innerHTML="";
+  keys.forEach(([label,cls,key])=>{
+    const b=document.createElement("button");
+    b.className="key "+cls;
+    b.textContent=label;
+    b.dataset.key=key;
+    padEl.appendChild(b);
+  });
+}
+
+let flashT=null;
+function setTopbar(){
+  if(UPDATED){
+    const opt={day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"};
+    topbar.innerHTML=`<span class="dot">●</span> Rates as of ${UPDATED.toLocaleDateString(undefined,opt)} · tap to refresh`;
+  }
+}
+function flash(msg){
+  topbar.textContent=msg;
+  clearTimeout(flashT);
+  flashT=setTimeout(setTopbar,1600);
+}
+
+/* ---------- calculator ---------- */
+function compute(a,op,b){
+  switch(op){case"add":return a+b;case"sub":return a-b;case"mul":return a*b;case"div":return b===0?0:a/b;}
+  return b;
+}
+function key(k){
+  const c=calc;
+  if(/^[0-9]$/.test(k)){
+    if(c.fresh||c.display===""){c.display=k;c.fresh=false;}
+    else if(c.display==="0"){c.display=k;}
+    else c.display+=k;
+  }else if(k==="dot"){
+    if(c.fresh||c.display===""){c.display="0.";c.fresh=false;}
+    else if(!c.display.includes("."))c.display+=".";
+  }else if(k==="back"){
+    c.fresh=false;
+    c.display=c.display.slice(0,-1);
+    if(c.display==="-")c.display="";
+  }else if(k==="clear"){
+    c.display="";c.acc=null;c.op=null;c.fresh=true;
+  }else if(k==="pct"){
+    if(c.display==="")return;
+    c.display=String(clean(parseFloat(c.display||"0")/100));c.fresh=true;
+  }else if(k==="add"||k==="sub"||k==="mul"||k==="div"){
+    const cur=parseFloat(c.display||"0");
+    if(c.op&&!c.fresh){c.acc=clean(compute(c.acc,c.op,cur));c.display=String(c.acc);}
+    else c.acc=cur;
+    c.op=k;c.fresh=true;
+  }else if(k==="eq"){
+    if(c.op!=null){c.display=String(clean(compute(c.acc,c.op,parseFloat(c.display||"0"))));c.op=null;c.acc=null;c.fresh=true;}
+  }
+  updateAmounts();
+}
+
+/* ---------- selection ---------- */
+function selectSlot(i){
+  if(i===active)return;
+  // carry over whatever this row currently shows as the new editable base
+  const cell=document.querySelectorAll("#rows .amount")[i];
+  let seed=(cell.textContent||"").replace(/[, ]/g,"");
+  if(seed==="—"||seed==="…")seed="";
+  active=i;
+  calc={display:seed,acc:null,op:null,fresh:true};
+  buildRows();
+}
+
+function changeCurrency(i,code){
+  slots[i]=code;
+  store.set("slots",JSON.stringify(slots));
+  buildRows();
+}
+
+/* ---------- events ---------- */
+rowsEl.addEventListener("click",e=>{
+  const f=e.target.closest("[data-flag]");
+  const a=e.target.closest("[data-amt]");
+  if(f){openPicker(+f.dataset.flag);return;}
+  if(a){selectSlot(+a.dataset.amt);return;}
+});
+padEl.addEventListener("click",e=>{
+  const b=e.target.closest(".key");
+  if(b)key(b.dataset.key);
+});
+topbar.addEventListener("click",()=>fetchRates(true));
+
+/* ---------- picker ---------- */
+const picker=document.getElementById("picker");
+const listEl=document.getElementById("list");
+const searchEl=document.getElementById("search");
+let pickIndex=0;
+function openPicker(i){
+  pickIndex=i;
+  searchEl.value="";
+  renderList("");
+  picker.classList.add("open");
+  setTimeout(()=>searchEl.focus(),50);
+}
+function closePicker(){picker.classList.remove("open");}
+function renderList(q){
+  q=q.trim().toLowerCase();
+  listEl.innerHTML="";
+  Object.keys(CUR).forEach(code=>{
+    const nm=CUR[code][1];
+    if(q && !code.toLowerCase().includes(q) && !nm.toLowerCase().includes(q))return;
+    const div=document.createElement("div");
+    div.className="item"+(slots[pickIndex]===code?" sel":"");
+    div.innerHTML=`<span class="flag">${flag(code)}</span><span class="it-code">${code}</span><span class="it-name">${nm}</span>`;
+    div.onclick=()=>{changeCurrency(pickIndex,code);closePicker();};
+    listEl.appendChild(div);
+  });
+}
+searchEl.addEventListener("input",()=>renderList(searchEl.value));
+picker.addEventListener("click",e=>{if(e.target===picker)closePicker();});
+
+/* ---------- rates fetching ---------- */
+function applyRates(rates,date,manual){
+  RATES=rates; UPDATED=date;
+  store.set("rates",JSON.stringify({rates,date:date.toISOString()}));
+  updateAmounts();
+  if(manual)flash("Updated ✓"); else setTopbar();
+}
+async function fetchRates(manual){
+  if(manual)flash("Updating…");
+  const cb="?cb="+Date.now();
+  const srcs=[
+    {url:"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json"+cb,t:"faw"},
+    {url:"https://latest.currency-api.pages.dev/v1/currencies/usd.json"+cb,t:"faw"},
+    {url:"https://open.er-api.com/v6/latest/USD",t:"erapi"}
+  ];
+  for(const s of srcs){
+    try{
+      const r=await fetch(s.url,{cache:"no-store"});
+      if(!r.ok)continue;
+      const j=await r.json();
+      if(s.t==="faw"){
+        const map=j.usd||{};
+        const rates={};
+        for(const k in map)rates[k.toUpperCase()]=map[k];
+        applyRates(rates,j.date?new Date(j.date+"T00:00:00Z"):new Date(),manual);
+        return;
+      }else{
+        applyRates(j.rates,j.time_last_update_unix?new Date(j.time_last_update_unix*1000):new Date(),manual);
+        return;
+      }
+    }catch(e){/* try next */}
+  }
+  if(manual)flash("Couldn't update – check connection");
+  else if(!UPDATED)topbar.textContent="Offline – no rates yet. Tap to retry.";
+}
+
+/* ---------- init ---------- */
+function init(){
+  buildPad();
+  buildRows();
+  // load cache first for instant display
+  try{
+    const c=JSON.parse(store.get("rates"));
+    if(c&&c.rates){RATES=c.rates;UPDATED=new Date(c.date);setTopbar();updateAmounts();}
+  }catch(e){}
+  fetchRates(false);
+  // refresh if app reopened after a while
+  setInterval(()=>{if(UPDATED&&Date.now()-UPDATED.getTime()>6*3600*1000)fetchRates(false);},3600*1000);
+}
+init();
+</script>
+</body>
+</html>
